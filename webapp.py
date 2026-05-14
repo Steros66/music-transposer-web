@@ -4,16 +4,16 @@ import music21
 import tempfile
 import os
 
-# --- IMPOSTAZIONI PAGINA ---
+# --- PAGE SETTINGS ---
 st.set_page_config(page_title="Music Utility Pro", page_icon="🎵")
 st.title("🎵 Transposer & Folder Web Pro")
-st.write("Carica il tuo file MIDI o MusicXML, modificalo e scarica il risultato!")
+st.write("Upload your MIDI or MusicXML file, modify it, and download the result!")
 
-# Mappatura Note
+# Note Mapping
 mappa_note = {"C": 0, "C#": 1, "D": 2, "D#": 3, "E": 4, "F": 5, "F#": 6, "G": 7, "G#": 8, "A": 9, "A#": 10, "B": 11}
 lista_note = list(mappa_note.keys())
 
-# --- FUNZIONI DI ANALISI (Identiche a prima) ---
+# --- ANALYSIS FUNCTIONS ---
 def analizza_tonalita(percorso):
     try:
         score = music21.converter.parse(percorso)
@@ -26,42 +26,42 @@ def analizza_tonalita(percorso):
     except Exception:
         return "C", "major", 0
 
-# --- INTERFACCIA WEB ---
-# 1. Caricamento File
-uploaded_file = st.file_uploader("1. Seleziona il tuo file musicale", type=['mid', 'midi', 'xml', 'musicxml', 'mxl'])
+# --- WEB INTERFACE ---
+# 1. File Upload
+uploaded_file = st.file_uploader("1. Select your music file", type=['mid', 'midi', 'xml', 'musicxml', 'mxl'])
 
 if uploaded_file is not None:
-    # Salviamo il file caricato in un file temporaneo per farlo leggere a mido/music21
+    # Save uploaded file to a temporary file for mido/music21 to read
     estensione = os.path.splitext(uploaded_file.name)[1].lower()
     with tempfile.NamedTemporaryFile(delete=False, suffix=estensione) as tmp_originale:
         tmp_originale.write(uploaded_file.getvalue())
         percorso_orig = tmp_originale.name
 
-    st.success(f"File '{uploaded_file.name}' caricato con successo!")
+    st.success(f"File '{uploaded_file.name}' successfully uploaded!")
 
-    # Creiamo due "Tab" (schede) per separare Trasposizione e Folding
-    tab1, tab2 = st.tabs(["🔄 Trasposizione", "📏 Folding Melodico"])
+    # Create two Tabs for Transposition and Folding
+    tab1, tab2 = st.tabs(["🔄 Transposition", "📏 Melodic Folding"])
 
-    # --- TAB 1: TRASPOSIZIONE ---
+    # --- TAB 1: TRANSPOSITION ---
     with tab1:
         col1, col2 = st.columns(2)
         with col1:
-            tonalita_dest = st.selectbox("Tonalità di destinazione:", lista_note)
+            tonalita_dest = st.selectbox("Target Key:", lista_note)
         with col2:
-            direzione = st.radio("Direzione:", ["Distanza Minima", "Sempre in Su", "Sempre in Giù"])
+            direzione = st.radio("Direction:", ["Shortest Distance", "Always Up", "Always Down"])
 
-        if st.button("Esegui Trasposizione"):
-            with st.spinner("Analisi ed elaborazione in corso..."):
+        if st.button("Execute Transposition"):
+            with st.spinner("Analyzing and processing..."):
                 ton_orig_nome, modo, val_orig = analizza_tonalita(percorso_orig)
                 
                 distanza = mappa_note[tonalita_dest] - val_orig
-                if direzione == "Distanza Minima":
+                if direzione == "Shortest Distance":
                     if distanza > 6: distanza -= 12
                     if distanza < -6: distanza += 12
-                elif direzione == "Sempre in Su" and distanza < 0: distanza += 12
-                elif direzione == "Sempre in Giù" and distanza > 0: distanza -= 12
+                elif direzione == "Always Up" and distanza < 0: distanza += 12
+                elif direzione == "Always Down" and distanza > 0: distanza -= 12
 
-                # Generiamo il file di output temporaneo
+                # Generate temporary output file
                 with tempfile.NamedTemporaryFile(delete=False, suffix=estensione) as tmp_out:
                     percorso_out = tmp_out.name
 
@@ -78,22 +78,22 @@ if uploaded_file is not None:
                     score_trasposto = score.transpose(distanza)
                     score_trasposto.write('musicxml', percorso_out)
 
-                st.success(f"Trasposizione completata! (Spostamento: {distanza} semitoni)")
+                st.success(f"Transposition complete! (Shift: {distanza} semitones)")
                 
-                # Bottone per il download
+                # Download button
                 with open(percorso_out, "rb") as file_out:
-                    st.download_button(label="📥 Scarica File Trasposto", data=file_out, file_name=f"trasposto_{uploaded_file.name}", mime="audio/midi")
+                    st.download_button(label="📥 Download Transposed File", data=file_out, file_name=f"transposed_{uploaded_file.name}", mime="audio/midi")
 
     # --- TAB 2: FOLDING ---
     with tab2:
         col3, col4 = st.columns(2)
         with col3:
-            lim_inf = st.number_input("Minimo (Es. Fa3=53):", value=53)
+            lim_inf = st.number_input("Minimum (e.g. F3=53):", value=53)
         with col4:
-            lim_sup = st.number_input("Massimo (Es. Do5=72):", value=72)
+            lim_sup = st.number_input("Maximum (e.g. C5=72):", value=72)
 
-        if st.button("Esegui Folding"):
-            with st.spinner("Compressione della melodia in corso..."):
+        if st.button("Execute Folding"):
+            with st.spinner("Compressing melody..."):
                 with tempfile.NamedTemporaryFile(delete=False, suffix=estensione) as tmp_out:
                     percorso_out = tmp_out.name
                 
@@ -120,7 +120,7 @@ if uploaded_file is not None:
                             while element.pitch.midi > lim_sup: element.pitch.octave -= 1; note_modificate += 1
                     score.write('musicxml', percorso_out)
 
-                st.success(f"Folding completato! Note modificate: {note_modificate}")
+                st.success(f"Folding complete! Modified notes: {note_modificate}")
                 
                 with open(percorso_out, "rb") as file_out:
-                    st.download_button(label="📥 Scarica File Foldato", data=file_out, file_name=f"folded_{uploaded_file.name}", mime="audio/midi")
+                    st.download_button(label="📥 Download Folded File", data=file_out, file_name=f"folded_{uploaded_file.name}", mime="audio/midi")
